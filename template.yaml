@@ -1,0 +1,260 @@
+apiVersion: zeabur.com/v1
+kind: Template
+metadata:
+  name: Cloudreve
+spec:
+  description: Self-hosted file management and sharing system, supports multiple storage providers
+  icon: https://avatars.githubusercontent.com/u/48898462?s=200&v=4
+  coverImage: https://raw.githubusercontent.com/cloudreve/docs/master/images/homepage.png
+  variables:
+    - key: PUBLIC_DOMAIN
+      type: DOMAIN
+      name: Domain
+      description: What is the domain you want for your Cloudreve?
+  tags:
+    - Tool
+  readme: |-
+    ![Screenshot](https://raw.githubusercontent.com/cloudreve/docs/master/images/homepage.png)
+
+    ## :sparkles: Features
+
+    * :cloud: Support storing files into Local storage, Remote storage, Qiniu, Aliyun OSS, Tencent COS, Upyun, OneDrive, S3 compatible API.
+    * :outbox_tray: Upload/Download in directly transmission with speed limiting support.
+    * 💾 Integrate with Aria2 to download files offline, use multiple download nodes to share the load.
+    * 📚 Compress/Extract files, download files in batch.
+    * 💻 WebDAV support covering all storage providers.
+    * :zap:Drag&Drop to upload files or folders, with streaming upload processing.
+    * :card_file_box: Drag & Drop to manage your files.
+    * :family_woman_girl_boy:   Multi-users with multi-groups.
+    * :link: Create share links for files and folders with expiration date.
+    * :eye_speech_bubble: Preview videos, images, audios, ePub files online; edit texts, Office documents online.
+    * :art: Customize theme colors, dark mode, PWA application, SPA, i18n.
+    * :rocket: All-In-One packing, with all features out-of-the-box.
+    * 🌈 ... ...
+  services:
+    - name: postgresql
+      icon: https://cdn.zeabur.com/marketplace/postgresql.svg
+      template: PREBUILT_V2
+      spec:
+        source:
+          image: postgres:17
+          command:
+            - docker-entrypoint.sh
+            - -c
+            - config_file=/etc/postgresql/postgresql.conf
+        ports:
+          - id: database
+            port: 5432
+            type: TCP
+        volumes:
+          - id: data
+            dir: /var/lib/postgresql/data
+        instructions:
+          - type: TEXT
+            title: Connection String
+            content: postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@${PORT_FORWARDED_HOSTNAME}:${DATABASE_PORT_FORWARDED_PORT}/${POSTGRES_DATABASE}
+          - type: TEXT
+            title: PostgreSQL Connect Command
+            content: psql "postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@${PORT_FORWARDED_HOSTNAME}:${DATABASE_PORT_FORWARDED_PORT}/${POSTGRES_DATABASE}"
+          - type: TEXT
+            title: PostgreSQL username
+            content: ${POSTGRES_USERNAME}
+            category: Credentials
+          - type: PASSWORD
+            title: PostgresSQL password
+            content: ${POSTGRES_PASSWORD}
+            category: Credentials
+          - type: TEXT
+            title: PostgresSQL database
+            content: ${POSTGRES_DATABASE}
+            category: Credentials
+          - type: TEXT
+            title: PostgreSQL host
+            content: ${PORT_FORWARDED_HOSTNAME}
+            category: Hostname & Port
+          - type: TEXT
+            title: PostgreSQL port
+            content: ${DATABASE_PORT_FORWARDED_PORT}
+            category: Hostname & Port
+        env:
+          PGDATA:
+            default: /var/lib/postgresql/data/pgdata
+            expose: false
+          POSTGRES_CONNECTION_STRING:
+            default: postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DATABASE}
+            expose: true
+          POSTGRES_DATABASE:
+            default: ${POSTGRES_DB}
+            expose: true
+          POSTGRES_DB:
+            default: zeabur
+            expose: false
+          POSTGRES_HOST:
+            default: ${CONTAINER_HOSTNAME}
+            expose: true
+          POSTGRES_PASSWORD:
+            default: ${PASSWORD}
+            expose: true
+          POSTGRES_PORT:
+            default: ${DATABASE_PORT}
+            expose: true
+          POSTGRES_URI:
+            default: ${POSTGRES_CONNECTION_STRING}
+            expose: true
+          POSTGRES_USER:
+            default: root
+            expose: false
+          POSTGRES_USERNAME:
+            default: ${POSTGRES_USER}
+            expose: true
+        configs:
+          - path: /etc/postgresql/postgresql.conf
+            template: |
+              # https://github.com/postgres/postgres/blob/master/src/backend/utils/misc/postgresql.conf.sample
+              listen_addresses = '*'
+              max_connections = 100
+              shared_buffers = 128MB
+              dynamic_shared_memory_type = posix
+              max_wal_size = 1GB
+              min_wal_size = 80MB
+              log_timezone = 'Etc/UTC'
+              datestyle = 'iso, mdy'
+              timezone = 'Etc/UTC'
+              lc_messages = 'en_US.utf8'
+              lc_monetary = 'en_US.utf8'
+              lc_numeric = 'en_US.utf8'
+              lc_time = 'en_US.utf8'
+              default_text_search_config = 'pg_catalog.english'
+            permission: null
+            envsubst: null
+        portForwarding:
+          enabled: false
+    - name: redis
+      icon: https://raw.githubusercontent.com/zeabur/service-icons/main/marketplace/redis.svg
+      template: PREBUILT_V2
+      spec:
+        source:
+          image: redis/redis-stack-server:latest
+        ports:
+          - id: database
+            port: 6379
+            type: TCP
+        volumes:
+          - id: data
+            dir: /data
+        instructions:
+          - type: TEXT
+            title: Command to connect to your Redis
+            content: redis-cli -h ${PORT_FORWARDED_HOSTNAME} -p ${DATABASE_PORT_FORWARDED_PORT} -a ${REDIS_PASSWORD}
+          - type: TEXT
+            title: Redis Connection String
+            content: redis://:${REDIS_PASSWORD}@${PORT_FORWARDED_HOSTNAME}:${DATABASE_PORT_FORWARDED_PORT}
+          - type: PASSWORD
+            title: Redis password
+            content: ${REDIS_PASSWORD}
+            category: Credentials
+          - type: TEXT
+            title: Redis host
+            content: ${PORT_FORWARDED_HOSTNAME}
+            category: Hostname & Port
+          - type: TEXT
+            title: Redis port
+            content: ${DATABASE_PORT_FORWARDED_PORT}
+            category: Hostname & Port
+        env:
+          CONFFILE:
+            default: /etc/redis-stack.conf
+            expose: false
+          REDIS_ARGS:
+            default: --requirepass ${REDIS_PASSWORD}
+            expose: false
+          REDIS_CONNECTION_STRING:
+            default: redis://:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}
+            expose: true
+          REDIS_HOST:
+            default: ${CONTAINER_HOSTNAME}
+            expose: true
+          REDIS_PASSWORD:
+            default: ${PASSWORD}
+            expose: true
+          REDIS_PORT:
+            default: ${DATABASE_PORT}
+            expose: true
+          REDIS_URI:
+            default: ${REDIS_CONNECTION_STRING}
+            expose: true
+        configs:
+          - path: /etc/redis-stack.conf
+            template: |
+              port 6379
+              daemonize no
+            permission: null
+            envsubst: null
+        portForwarding:
+          enabled: false
+    - name: cloudreve
+      icon: https://avatars.githubusercontent.com/u/48898462?s=200&v=4
+      template: PREBUILT_V2
+      spec:
+        source:
+          image: cloudreve/cloudreve:latest
+        ports:
+          - id: http
+            port: 5210
+            type: HTTP
+        volumes:
+          - id: cloudreve-backend-data
+            dir: /cloudreve/data
+        env:
+          CR_CONF_Database.Host:
+            default: ${POSTGRES_HOST}
+            expose: false
+          CR_CONF_Database.Name:
+            default: ${POSTGRES_DATABASE}
+            expose: false
+          CR_CONF_Database.Password:
+            default: ${POSTGRES_PASSWORD}
+            expose: false
+          CR_CONF_Database.Port:
+            default: ${POSTGRES_PORT}
+            expose: false
+          CR_CONF_Database.Type:
+            default: postgres
+            expose: false
+          CR_CONF_Database.User:
+            default: ${POSTGRES_USERNAME}
+            expose: false
+          CR_CONF_Redis.Server:
+            default: ${REDIS_HOST}:${REDIS_PORT}
+            expose: false
+          CR_CONF_Redis.Password:
+            default: ${REDIS_PASSWORD}
+            expose: false
+        configs: []
+        portForwarding:
+          enabled: false
+
+localization:
+  zh-CN:
+    description: 自托管的文件管理与共享系统，支持多种存储提供商。
+    variables:
+      - key: PUBLIC_DOMAIN
+        type: DOMAIN
+        name: 域名
+        description: 你希望为 Cloudreve 使用哪个域名？
+    readme: |-
+      ## :sparkles: 特性
+
+      * :cloud: 支持本机、从机、七牛、阿里云 OSS、腾讯云 COS、又拍云、OneDrive (包括世纪互联版) 、S3兼容协议 作为存储端
+      * :outbox_tray: 上传/下载 支持客户端直传，支持下载限速
+      * 💾 可对接 Aria2 离线下载，可使用多个从机节点分担下载任务
+      * 📚 在线 压缩/解压缩、多文件打包下载
+      * 💻 覆盖全部存储策略的 WebDAV 协议支持
+      * :zap: 拖拽上传、目录上传、流式上传处理
+      * :card_file_box: 文件拖拽管理
+      * :family_woman_girl_boy:   多用户、用户组、多存储策略
+      * :link: 创建文件、目录的分享链接，可设定自动过期
+      * :eye_speech_bubble: 视频、图像、音频、 ePub 在线预览，文本、Office 文档在线编辑
+      * :art: 自定义配色、黑暗模式、PWA 应用、全站单页应用、国际化支持
+      * :rocket: All-In-One 打包，开箱即用
+      * 🌈 ... ...
